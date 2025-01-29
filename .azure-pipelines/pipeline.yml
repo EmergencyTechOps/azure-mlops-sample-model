@@ -1,1 +1,42 @@
+trigger:
+  - main
 
+pool:
+  vmImage: "ubuntu-latest"
+
+stages:
+  - stage: Train_Model
+    jobs:
+      - job: Train
+        steps:
+          - script: |
+              python -m venv venv
+              source venv/bin/activate
+              pip install numpy scikit-learn
+              python model/train.py
+            displayName: "Train ML Model"
+
+          - task: PublishBuildArtifacts@1
+            inputs:
+              pathToPublish: "model.pkl"
+              artifactName: "model"
+  
+  - stage: Deploy_API
+    jobs:
+      - job: Deploy
+        steps:
+          - checkout: self
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: "3.x"
+
+          - script: |
+              pip install -r api/requirements.txt
+              python api/app.py
+            displayName: "Deploy Flask API"
+
+          - task: AzureWebApp@1
+            inputs:
+              azureSubscription: "YOUR_AZURE_CONNECTION"
+              appName: "mlops-app"
+              package: "."
